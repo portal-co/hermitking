@@ -140,7 +140,8 @@ fn main() -> std::io::Result<()> {
             cc_binary(
             name = \"wasm\",
             srcs = [{sources}],
-            hdrs = [{headers}]
+            hdrs = [{headers}],
+            visibility = [\"//visibility:public\"]
             )
             ",
                 ),
@@ -152,7 +153,8 @@ fn main() -> std::io::Result<()> {
             cxx_binary(
             name = \"wasm\",
             srcs = [{sources}],
-            headers = [{headers}]
+            headers = [{headers}],
+            visibility = \"PUBLIC\"
             )
             ",
                 ),
