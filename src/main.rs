@@ -16,19 +16,26 @@ fn main() -> std::io::Result<()> {
         Subcommand::Gen {
             wasm_file,
             out_dir,
+            #[cfg(not(target_os = "wasi"))]
             is_precompiled,
         } => {
-            if is_precompiled {
-                for e in std::fs::read_dir(wasm_file)? {
-                    let e = e?;
-                    if !(e.file_name().as_encoded_bytes().ends_with(b".c")
-                        || e.file_name().as_encoded_bytes().ends_with(b".h"))
-                        || !(e.file_name().as_encoded_bytes().starts_with(b"wasm"))
-                    {
-                        continue;
+            macro_rules! p {
+                () => {
+                    for e in std::fs::read_dir(wasm_file)? {
+                        let e = e?;
+                        if !(e.file_name().as_encoded_bytes().ends_with(b".c")
+                            || e.file_name().as_encoded_bytes().ends_with(b".h"))
+                            || !(e.file_name().as_encoded_bytes().starts_with(b"wasm"))
+                        {
+                            continue;
+                        }
+                        std::fs::copy(e.path(), out_dir.join(Path::new(&e.file_name())))?;
                     }
-                    std::fs::copy(e.path(), out_dir.join(Path::new(&e.file_name())))?;
-                }
+                };
+            }
+            #[cfg(not(target_os = "wasi"))]
+            if is_precompiled {
+                p!()
             } else {
                 let s = std::process::Command::new("w2c2")
                     .arg("-f")
@@ -41,6 +48,8 @@ fn main() -> std::io::Result<()> {
                     exit(s.code().unwrap());
                 }
             }
+            #[cfg(target_os = "wasi")]
+            p!();
             let mut sources = BTreeSet::new();
             let mut headers = BTreeSet::new();
             for e in std::fs::read_dir(&out_dir)? {
@@ -65,7 +74,10 @@ fn main() -> std::io::Result<()> {
                     headers.insert(e.path().to_owned());
                 }
             }
-            std::fs::write(out_dir.join("main.c"), format!(r#"
+            std::fs::write(
+                out_dir.join("main.c"),
+                format!(
+                    r#"
             #include <stdio.h>
             #include "w2c2_base.h"
             #include "wasi.h"
@@ -123,7 +135,9 @@ fn main() -> std::io::Result<()> {
 
                 return 0;
             }}
-            "#))?;
+            "#
+                ),
+            )?;
             sources.insert(PathBuf::from("main.c"));
             let sources = sources
                 .iter()
@@ -175,6 +189,7 @@ pub enum Subcommand {
         ///The wasm file to compile if not precompiled, else the directory containing a `w2c2` output
         wasm_file: PathBuf,
         out_dir: PathBuf,
+        #[cfg(not(target_os = "wasi"))]
         #[arg(name = "precompiled")]
         is_precompiled: bool,
     },
