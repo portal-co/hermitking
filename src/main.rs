@@ -65,6 +65,66 @@ fn main() -> std::io::Result<()> {
                     headers.insert(e.path().to_owned());
                 }
             }
+            std::fs::write(out_dir.join("main.c"), format!(r#"
+            #include <stdio.h>
+            #include "w2c2_base.h"
+            #include "wasi.h"
+            #include "wasm.h"
+            #include <unistd.h>
+
+
+            void
+            trap(
+                Trap trap
+            ) {{
+                fprintf(stderr, "TRAP: %s\n", trapDescription(trap));
+                abort();
+            }}
+
+            wasmMemory*
+            wasiMemory(
+                void* instance
+            ) {{
+                return wasm_memory((wasmInstance*)instance);
+            }}
+
+            
+            extern char** environ;
+            
+
+            /* Main */
+
+            int main(int argc, char* argv[]) {{
+
+                char buf[PATH_MAX];
+                getcwd(buf,sizeof(buf));
+
+                setenv("PWD",buf);
+
+                /* Initialize WASI */
+                if (!wasiInit(argc, argv, environ)) {{
+                    fprintf(stderr, "failed to init WASI\n");
+                    return 1;
+                }}
+
+
+                if (!wasiFileDescriptorAdd(-1, buf, NULL)) {{
+                    fprintf(stderr, "failed to add preopen\n");
+                    return 1;
+                }}
+
+
+                {{
+                    wasmInstance instance;
+                    wasmInstantiate(&instance, NULL);
+                    wasm__start(&instance);
+                    wasmFreeInstance(&instance);
+                }}
+
+                return 0;
+            }}
+            "#))?;
+            sources.insert(PathBuf::from("main.c"));
             let sources = sources
                 .iter()
                 .filter_map(|a| Some(format!("\"{}\"", a.to_str()?)))
@@ -110,6 +170,7 @@ pub struct Args {
 #[derive(clap::Subcommand, Debug, Clone)]
 pub enum Subcommand {
     Gen {
+        ///The wasm file to compile if not precompiled, else the directory containing a `w2c2` output
         wasm_file: PathBuf,
         out_dir: PathBuf,
         #[arg(name = "precompiled")]
