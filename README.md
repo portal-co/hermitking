@@ -1,13 +1,14 @@
 # hermitking
 
 ## Description
-Project hermitking
+A Rust-based CLI tool or utility (`hermitking`), possibly related to W2C2 setup (`w2c2-setup.sh`).
 
 ## Goals
-- [ ] Add project goals
+- [ ] TBD
+- [ ] Manage W2C2 integration
 
 ## Progress
-- [ ] Initial setup
+- [ ] Crate initialized with `clap` dependency
 
 ---
 *AI assisted*
